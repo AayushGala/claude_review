@@ -11,7 +11,7 @@ if [[ -z "$BASE" ]]; then
   exit 1
 fi
 if [[ "$BASE" == review/* ]]; then
-  echo "ERROR: already on a review branch ($BASE). Run /finish-review first." >&2
+  echo "ERROR: already on a review branch ($BASE). Run /self-review-finish first." >&2
   exit 1
 fi
 
@@ -80,7 +80,7 @@ PR_URL=$(gh pr create \
   --base "$BASE" \
   --head "$REVIEW_BRANCH" \
   --title "Review: $BASE" \
-  --body "Throwaway review PR. Comment inline on the Files tab. Run /address-comments to apply, /finish-review to squash-merge." \
+  --body "Throwaway review PR. Comment inline on the Files tab. Run /self-review-apply to apply, /self-review-finish to squash-merge." \
   --draft)
 
 echo "$PR_URL"

@@ -13,7 +13,7 @@ cp "${REPO_DIR}/scripts/review/"*.sh "${CLAUDE_DIR}/scripts/review/"
 chmod +x "${CLAUDE_DIR}/scripts/review/"*.sh
 
 echo "Installed:"
-echo "  ${CLAUDE_DIR}/commands/{start-review,address-comments,finish-review}.md"
+echo "  ${CLAUDE_DIR}/commands/{self-review-start,self-review-apply,self-review-finish}.md"
 echo "  ${CLAUDE_DIR}/scripts/review/{start,fetch-comments,commit-push,finish}.sh"
 echo ""
-echo "Open a Claude Code session and try /start-review on a feature branch."
+echo "Open a Claude Code session and try /self-review-start on a feature branch."
