@@ -2,6 +2,7 @@
 # Squash-merge the review PR into its base branch, delete the review branch,
 # switch back to base, and pull. Takes the squash subject as $1 (required).
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 SUBJECT="${1:-}"
 if [[ -z "$SUBJECT" ]]; then
@@ -35,7 +36,7 @@ git checkout "$BASE"
 git pull origin "$BASE"
 git branch -D "$BRANCH" 2>/dev/null || true
 
-rm -f /tmp/review-session/current.json /tmp/review-session/body-*.txt 2>/dev/null || true
+rm -rf "$(review_session_dir)" 2>/dev/null || true
 
 SHA=$(git rev-parse --short HEAD)
 echo "merged: $BASE is now at $SHA"

@@ -2,6 +2,7 @@
 # Stage, commit (as "review: round N"), and push the review branch.
 # Prints "no-changes" and exits 0 if nothing to commit.
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 BRANCH=$(git branch --show-current)
 if [[ "$BRANCH" != review/* ]]; then
@@ -10,8 +11,9 @@ if [[ "$BRANCH" != review/* ]]; then
 fi
 
 # Resolve BASE from cached session, or fall back to gh.
-if [[ -f /tmp/review-session/current.json ]]; then
-  BASE=$(jq -r .base /tmp/review-session/current.json)
+SESSION_DIR=$(review_session_dir)
+if [[ -f "$SESSION_DIR/current.json" ]]; then
+  BASE=$(jq -r .base "$SESSION_DIR/current.json")
 else
   REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
   BASE=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open \
