@@ -7,10 +7,6 @@ CLAUDE_DIR="${HOME}/.claude"
 rm -f "${CLAUDE_DIR}/commands/self-review-start.md"
 rm -f "${CLAUDE_DIR}/commands/self-review-apply.md"
 rm -f "${CLAUDE_DIR}/commands/self-review-finish.md"
-# Old names from before the rename — remove if present.
-rm -f "${CLAUDE_DIR}/commands/start-review.md"
-rm -f "${CLAUDE_DIR}/commands/address-comments.md"
-rm -f "${CLAUDE_DIR}/commands/finish-review.md"
 rm -rf "${CLAUDE_DIR}/scripts/review"
 
 echo "Uninstalled review tool from ${CLAUDE_DIR}."
