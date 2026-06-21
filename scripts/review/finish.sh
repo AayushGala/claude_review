@@ -36,7 +36,7 @@ git checkout "$BASE"
 git pull origin "$BASE"
 git branch -D "$BRANCH" 2>/dev/null || true
 
-rm -f /tmp/review-session/current.json /tmp/review-session/body-*.txt 2>/dev/null || true
+rm -rf "$(review_session_dir)" 2>/dev/null || true
 
 SHA=$(git rev-parse --short HEAD)
 echo "merged: $BASE is now at $SHA"

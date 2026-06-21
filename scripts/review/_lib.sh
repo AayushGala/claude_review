@@ -13,3 +13,17 @@ gh() {
     command gh "$@"
   fi
 }
+
+# Per-checkout session directory. Lives inside .git/ so multiple concurrent
+# review sessions (different repos, or different worktrees of the same repo)
+# don't collide on shared state.
+review_session_dir() {
+  local git_dir
+  git_dir=$(git rev-parse --git-dir)
+  # rev-parse may return a relative path (".git") — resolve to absolute.
+  case "$git_dir" in
+    /*) ;;
+    *) git_dir="$(pwd)/$git_dir" ;;
+  esac
+  echo "$git_dir/review-session"
+}

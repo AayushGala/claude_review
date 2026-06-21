@@ -32,11 +32,12 @@ PR=$(jq -r .number <<<"$PR_JSON")
 BASE=$(jq -r .baseRefName <<<"$PR_JSON")
 URL=$(jq -r .url <<<"$PR_JSON")
 
-mkdir -p /tmp/review-session
-cat >/tmp/review-session/current.json <<EOF
+SESSION_DIR=$(review_session_dir)
+mkdir -p "$SESSION_DIR"
+cat >"$SESSION_DIR/current.json" <<EOF
 {"repo":"$REPO","pr":$PR,"base":"$BASE","branch":"$BRANCH","url":"$URL"}
 EOF
-rm -f /tmp/review-session/body-*.txt 2>/dev/null || true
+rm -f "$SESSION_DIR"/body-*.txt 2>/dev/null || true
 
 gh api graphql \
   -f query='
@@ -81,5 +82,5 @@ gh api graphql \
     body=$(jq -r .body <<<"$row")
     first=$(printf '%s' "$body" | head -n1 | tr -d '\t' | cut -c1-200)
     printf 'inline\t%s\t%s\t%s\t%s\t%s\n' "$path" "$line" "$user" "$first" "$id"
-    printf '%s' "$body" >"/tmp/review-session/body-$id.txt"
+    printf '%s' "$body" >"$SESSION_DIR/body-$id.txt"
   done
