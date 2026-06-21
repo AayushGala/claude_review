@@ -2,6 +2,7 @@
 # Stage, commit (as "review: round N"), and push the review branch.
 # Prints "no-changes" and exits 0 if nothing to commit.
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 BRANCH=$(git branch --show-current)
 if [[ "$BRANCH" != review/* ]]; then

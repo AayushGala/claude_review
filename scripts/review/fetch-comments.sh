@@ -5,6 +5,7 @@
 # KIND is "inline" or "issue".  For "issue" comments PATH/LINE are "-".
 # Full bodies are written to /tmp/review-comments-<id>.txt for the caller to read.
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 BRANCH=$(git branch --show-current)
 if [[ "$BRANCH" != review/* ]]; then

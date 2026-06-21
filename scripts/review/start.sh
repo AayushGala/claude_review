@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start a review session: create review/<branch>, push, open draft PR within the fork.
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 BASE=$(git branch --show-current)
 if [[ -z "$BASE" ]]; then

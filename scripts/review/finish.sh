@@ -2,6 +2,7 @@
 # Squash-merge the review PR into its base branch, delete the review branch,
 # switch back to base, and pull. Takes the squash subject as $1 (required).
 set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 SUBJECT="${1:-}"
 if [[ -z "$SUBJECT" ]]; then
