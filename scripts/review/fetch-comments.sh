@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Fetch comments on the active review PR that were created after the last commit
-# on the review branch. Emits one comment per line as TSV:
-#   KIND<TAB>PATH<TAB>LINE<TAB>USER<TAB>BODY_FIRST_LINE<TAB>ID
-# KIND is "inline" or "issue".  For "issue" comments PATH/LINE are "-".
-# Full bodies are written to /tmp/review-comments-<id>.txt for the caller to read.
+# Fetch all unresolved review threads on the active review PR.
+# Emits one thread per line as TSV:
+#   inline<TAB>PATH<TAB>LINE<TAB>USER<TAB>BODY_FIRST_LINE<TAB>ID
+# where ID is the databaseId of the thread's first comment. The full body
+# (entire conversation in the thread, formatted as "@user: text" joined by
+# "---") is written to /tmp/review-session/body-<ID>.txt so the caller can
+# read it without TSV truncation.
+#
+# Only inline comments are supported. PR-level ("issue") comments have no
+# resolution state in GitHub and would loop forever, so they're ignored.
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
@@ -14,6 +19,8 @@ if [[ "$BRANCH" != review/* ]]; then
 fi
 
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+OWNER=${REPO%%/*}
+NAME=${REPO##*/}
 
 PR_JSON=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open \
   --json number,baseRefName,url --jq '.[0]')
@@ -25,50 +32,54 @@ PR=$(jq -r .number <<<"$PR_JSON")
 BASE=$(jq -r .baseRefName <<<"$PR_JSON")
 URL=$(jq -r .url <<<"$PR_JSON")
 
-# Normalize last-commit time to UTC ISO 8601 (`...Z`) so lexicographic
-# comparison against GitHub's `created_at` (always UTC) is correct.
-LAST_TS_UNIX=$(git log -1 --format=%ct)
-if date -u -r 0 >/dev/null 2>&1; then
-  LAST_TS=$(date -u -r "$LAST_TS_UNIX" +"%Y-%m-%dT%H:%M:%SZ")  # BSD/macOS
-else
-  LAST_TS=$(date -u -d "@$LAST_TS_UNIX" +"%Y-%m-%dT%H:%M:%SZ")  # GNU/Linux
-fi
-
-# Cache PR metadata where the caller can find it.
 mkdir -p /tmp/review-session
 cat >/tmp/review-session/current.json <<EOF
-{"repo":"$REPO","pr":$PR,"base":"$BASE","branch":"$BRANCH","url":"$URL","last_commit_ts":"$LAST_TS"}
+{"repo":"$REPO","pr":$PR,"base":"$BASE","branch":"$BRANCH","url":"$URL"}
 EOF
+rm -f /tmp/review-session/body-*.txt 2>/dev/null || true
 
-# Wipe any leftover full-body files from previous runs.
-rm -f /tmp/review-session/body-*.txt
-
-emit() {
-  local kind="$1" path="$2" line="$3" user="$4" body="$5" id="$6"
-  local first
-  first=$(printf '%s' "$body" | head -n1 | tr -d '\t' | cut -c1-200)
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$kind" "$path" "$line" "$user" "$first" "$id"
-  printf '%s' "$body" >"/tmp/review-session/body-$id.txt"
-}
-
-# Inline review comments.
-gh api "repos/$REPO/pulls/$PR/comments" --paginate \
-  --jq ".[] | select(.created_at > \"$LAST_TS\") | [.id, .path, (.line // .original_line // 0), .user.login, .body] | @json" \
+gh api graphql \
+  -f query='
+    query($owner:String!, $name:String!, $pr:Int!) {
+      repository(owner:$owner, name:$name) {
+        pullRequest(number:$pr) {
+          reviewThreads(first:100) {
+            nodes {
+              isResolved
+              comments(first:50) {
+                nodes {
+                  databaseId
+                  path
+                  line
+                  originalLine
+                  body
+                  author { login }
+                }
+              }
+            }
+          }
+        }
+      }
+    }' \
+  -f owner="$OWNER" -f name="$NAME" -F pr="$PR" \
+| jq -c '
+    .data.repository.pullRequest.reviewThreads.nodes
+    | map(select(.isResolved == false and (.comments.nodes | length) > 0))
+    | .[]
+    | {
+        id:   .comments.nodes[0].databaseId,
+        path: .comments.nodes[0].path,
+        line: (.comments.nodes[0].line // .comments.nodes[0].originalLine // 0),
+        user: .comments.nodes[0].author.login,
+        body: (.comments.nodes | map("@\(.author.login): \(.body)") | join("\n---\n"))
+      }' \
 | while IFS= read -r row; do
-    id=$(jq -r '.[0]' <<<"$row")
-    path=$(jq -r '.[1]' <<<"$row")
-    line=$(jq -r '.[2]' <<<"$row")
-    user=$(jq -r '.[3]' <<<"$row")
-    body=$(jq -r '.[4]' <<<"$row")
-    emit inline "$path" "$line" "$user" "$body" "$id"
-  done
-
-# Issue-level (PR-level) comments.
-gh api "repos/$REPO/issues/$PR/comments" --paginate \
-  --jq ".[] | select(.created_at > \"$LAST_TS\") | [.id, .user.login, .body] | @json" \
-| while IFS= read -r row; do
-    id=$(jq -r '.[0]' <<<"$row")
-    user=$(jq -r '.[1]' <<<"$row")
-    body=$(jq -r '.[2]' <<<"$row")
-    emit issue "-" "-" "$user" "$body" "$id"
+    id=$(jq -r .id <<<"$row")
+    path=$(jq -r .path <<<"$row")
+    line=$(jq -r .line <<<"$row")
+    user=$(jq -r .user <<<"$row")
+    body=$(jq -r .body <<<"$row")
+    first=$(printf '%s' "$body" | head -n1 | tr -d '\t' | cut -c1-200)
+    printf 'inline\t%s\t%s\t%s\t%s\t%s\n' "$path" "$line" "$user" "$first" "$id"
+    printf '%s' "$body" >"/tmp/review-session/body-$id.txt"
   done
