@@ -25,7 +25,14 @@ PR=$(jq -r .number <<<"$PR_JSON")
 BASE=$(jq -r .baseRefName <<<"$PR_JSON")
 URL=$(jq -r .url <<<"$PR_JSON")
 
-LAST_TS=$(git log -1 --format=%cI)
+# Normalize last-commit time to UTC ISO 8601 (`...Z`) so lexicographic
+# comparison against GitHub's `created_at` (always UTC) is correct.
+LAST_TS_UNIX=$(git log -1 --format=%ct)
+if date -u -r 0 >/dev/null 2>&1; then
+  LAST_TS=$(date -u -r "$LAST_TS_UNIX" +"%Y-%m-%dT%H:%M:%SZ")  # BSD/macOS
+else
+  LAST_TS=$(date -u -d "@$LAST_TS_UNIX" +"%Y-%m-%dT%H:%M:%SZ")  # GNU/Linux
+fi
 
 # Cache PR metadata where the caller can find it.
 mkdir -p /tmp/review-session
